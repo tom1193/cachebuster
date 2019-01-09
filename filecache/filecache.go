@@ -2,15 +2,11 @@ package filecache
 
 import (
 	"fmt"
-	"errors"
 	"strings"
 	"net/http"
 	"github.com/tom1193/cachebuster/utils"
+	"github.com/tom1193/cachebuster/proto"
 )
-
-type Response struct {
-	Names []string `json:"names, omitempty"`
-}
 
 const EnvError = "Invalid request, env must be 'dev' or 'prod'"
 
@@ -33,20 +29,19 @@ func ReturnFileCacheEnv(env string) *[]string {
 }
 
 //init FileCache to have all files in the cloud
-func UpdateFileCache(filenames []string, env string) (int, error) {
-	var fc = ReturnFileCacheEnv(env)
+func UpdateFileCache(pr proto.PostRequest) (map[string]interface{}, int) {
+	var fc = ReturnFileCacheEnv(pr.Env)
 	if fc != nil {
-		if filenames != nil {
-				*fc = filenames
+		if pr.Filecache.Names != nil {
+				*fc = pr.Filecache.Names
 				fmt.Println(DevFileCache, ProdFileCache)
-				return http.StatusCreated, nil
+				return nil, http.StatusCreated
 			} else {
-				return http.StatusBadRequest, errors.New("Invalid request, post at least one file.")
+				return utils.Message(false, "Invalid request, POST at least one file."), http.StatusBadRequest
 			}
 	} else {
-		return http.StatusBadRequest, errors.New(EnvError)
+		return utils.Message(false, EnvError), http.StatusBadRequest
 	}
-	
 }
 
 //receives file prefix and return full names of matching files
@@ -66,10 +61,10 @@ func RequestFileCache(filenames []string, env string) (map[string]interface{}, i
 				}
 			}
 			res := utils.Message(true, "Returned matching files")
-			res["filecache"] = Response{responseNames}
+			res["filecache"] = proto.Filecache{responseNames}
 			return res, http.StatusOK
 		} else {
-			return utils.Message(false, "Invalid request, request at least one file."), http.StatusBadRequest
+			return utils.Message(false, "Invalid request, GET at least one file."), http.StatusBadRequest
 		}
 	} else {
 		return utils.Message(false, EnvError), http.StatusBadRequest
@@ -80,7 +75,7 @@ func EchoFileCache(env string) (map[string]interface{}, int) {
 	var fc = ReturnFileCacheEnv(env)
 	if fc != nil {
 		res := utils.Message(true, "Echoing file cache")
-		res["filecache"] = Response{*fc}
+		res["filecache"] = proto.Filecache{*fc}
 		return res, http.StatusOK
 	} else {
 		return utils.Message(false, EnvError), http.StatusBadRequest

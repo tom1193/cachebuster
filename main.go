@@ -10,28 +10,36 @@ import (
     "fmt"
     "log"
     "os"
-    // "encoding/json"
+    "encoding/json"
     "github.com/gorilla/mux"
     "net/http"
     "github.com/rs/cors"
     "github.com/tom1193/cachebuster/filecache"
     "github.com/tom1193/cachebuster/utils"
+    "github.com/tom1193/cachebuster/proto"
 )
 
 func PostFiles(w http.ResponseWriter, r *http.Request) {
-    params := r.URL.Query() //returns Values type which is a map[string][]string of the parameters
-    fmt.Println(params)
-    res, err := filecache.UpdateFileCache(params["filenames"], params["env"][0])
+    //POST should be in JSON
+    decoder := json.NewDecoder(r.Body)
+    var pr proto.PostRequest
+    err := decoder.Decode(&pr)
     if err != nil {
-        http.Error(w, err.Error(), res)
-        return
+        m := utils.Message(false, "Invalid request, cannot parse json body")
+        w.WriteHeader(http.StatusBadRequest)
+        utils.Respond(w, m)
     }
-    w.WriteHeader(res)
+    //update file cache
+    res, status := filecache.UpdateFileCache(pr)
+    w.WriteHeader(status)
+    if status != http.StatusCreated {
+        utils.Respond(w, res)
+    }
 }
 
 //GET requests should respond in browser-compatible JSON
 func RequestFiles(w http.ResponseWriter, r *http.Request) {
-    params := r.URL.Query()
+    params := r.URL.Query() //returns Values type which is a map[string][]string of the parameters
     res, status := filecache.RequestFileCache(params["filenames"], params["env"][0])
     w.WriteHeader(status)
     utils.Respond(w, res)
